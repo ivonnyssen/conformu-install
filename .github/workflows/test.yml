@@ -1,0 +1,51 @@
+name: Test ConformU Install
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install ConformU
+        uses: ./
+
+      - name: Test ConformU (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          conformu --help
+          if [ $? -eq 0 ]; then
+            echo "ConformU test successful"
+          else
+            echo "ConformU test failed"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Test ConformU (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          conformu --help
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "ConformU test successful"
+          } else {
+            Write-Host "ConformU test failed"
+            exit 1
+          }
+        shell: powershell
+
+      - name: Test ConformU (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          conformu --help
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "ConformU test successful"
+          } else {
+            Write-Host "ConformU test failed"
+            exit 1
+          }
+        shell: pwsh

@@ -1,0 +1,66 @@
+name: Install ConformU
+author: conformu-install
+description: Install ConformU platform on Linux, Windows, and macOS
+branding:
+  icon: download
+  color: blue
+
+inputs:
+  version:
+    description: "ConformU version to install (default: latest)"
+    required: false
+    default: latest
+
+outputs:
+  version:
+    description: Installed ConformU version
+    value: ${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}
+  cache-key:
+    description: Cache key for actions/cache
+    value: conformu-${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}-${{ runner.os }}
+
+runs:
+  using: composite
+  steps:
+    - id: get-version
+      if: inputs.version == 'latest'
+      uses: pozetroninc/github-action-get-latest-release@master
+      with:
+        repository: ASCOMInitiative/ConformU
+        token: ${{ github.token }}
+
+    - id: install-linux
+      if: runner.os == 'Linux'
+      run: |
+        VERSION="${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}"
+        wget -q --header="Authorization: Bearer ${{ github.token }}" "https://github.com/ASCOMInitiative/ConformU/releases/download/$VERSION/conformu.linux-x64.tar.xz"
+        tar -xf conformu.linux-x64.tar.xz
+        chmod +x conformu
+        echo "$PWD" >> $GITHUB_PATH
+      shell: bash
+
+    - id: install-windows
+      if: runner.os == 'Windows'
+      run: |
+        $release = "${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}"
+        $headers = @{ Authorization = "Bearer ${{ github.token }}" }
+        $releaseInfo = Invoke-RestMethod "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/tags/$release"
+        $asset = $releaseInfo.assets | Where-Object { $_.name -like "ConformU.*.Setup.exe" }
+        Invoke-WebRequest $asset.browser_download_url -OutFile installer.exe -UseBasicParsing
+        Start-Process installer.exe -ArgumentList "/SP", "/VERYSILENT" -Wait -NoNewWindow
+        echo "${env:ProgramFiles}\ASCOM\ConformU" >> $env:GITHUB_PATH
+      shell: powershell
+
+    - id: install-macos
+      if: runner.os == 'macOS'
+      run: |
+        $release = "${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}"
+        $headers = @{ Authorization = "Bearer ${{ github.token }}" }
+        $releaseInfo = Invoke-RestMethod "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/tags/$release" -Headers $headers
+        $asset = $releaseInfo.assets | Where-Object { $_.name -eq "ConformU-Installer.dmg" }
+        Invoke-WebRequest $asset.browser_download_url -OutFile installer.dmg -UseBasicParsing
+        hdiutil attach installer.dmg
+        cp -R "/Volumes/ConformU-Installer/ConformU.app" /Applications/
+        hdiutil detach "/Volumes/ConformU-Installer"
+        echo "/Applications/ConformU.app/Contents/Resources" >> $env:GITHUB_PATH
+      shell: pwsh
