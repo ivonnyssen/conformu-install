@@ -33,7 +33,11 @@ runs:
       if: runner.os == 'Linux'
       run: |
         VERSION="${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}"
-        wget -q --header="Authorization: Bearer ${{ github.token }}" "https://github.com/ASCOMInitiative/ConformU/releases/download/$VERSION/conformu.linux-x64.tar.xz"
+        if [ ! -f "conformu.linux-x64.tar.xz" ]; then
+          wget -q --header="Authorization: Bearer ${{ github.token }}" "https://github.com/ASCOMInitiative/ConformU/releases/download/$VERSION/conformu.linux-x64.tar.xz"
+        else
+          echo "Using cached conformu.linux-x64.tar.xz"
+        fi
         tar -xf conformu.linux-x64.tar.xz
         chmod +x conformu
         echo "$PWD" >> $GITHUB_PATH
@@ -44,10 +48,15 @@ runs:
       run: |
         $release = "${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}"
         $headers = @{ Authorization = "Bearer ${{ github.token }}" }
-        $releaseInfo = Invoke-RestMethod "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/tags/$release"
+        $releaseInfo = Invoke-RestMethod "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/tags/$release" -Headers $headers
         $asset = $releaseInfo.assets | Where-Object { $_.name -like "ConformU.*.Setup.exe" }
-        Invoke-WebRequest $asset.browser_download_url -OutFile installer.exe -UseBasicParsing
-        Start-Process installer.exe -ArgumentList "/SP", "/VERYSILENT" -Wait -NoNewWindow
+        $installer = $asset.name
+        if (-not (Test-Path $installer)) {
+          Invoke-WebRequest $asset.browser_download_url -OutFile $installer -UseBasicParsing
+        } else {
+          Write-Host "Using cached $installer"
+        }
+        Start-Process $installer -ArgumentList "/SP", "/VERYSILENT" -Wait -NoNewWindow
         echo "${env:ProgramFiles}\ASCOM\ConformU" >> $env:GITHUB_PATH
       shell: powershell
 
@@ -58,8 +67,13 @@ runs:
         $headers = @{ Authorization = "Bearer ${{ github.token }}" }
         $releaseInfo = Invoke-RestMethod "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/tags/$release" -Headers $headers
         $asset = $releaseInfo.assets | Where-Object { $_.name -eq "ConformU-Installer.dmg" }
-        Invoke-WebRequest $asset.browser_download_url -OutFile installer.dmg -UseBasicParsing
-        hdiutil attach installer.dmg
+        $installer = $asset.name
+        if (-not (Test-Path $installer)) {
+          Invoke-WebRequest $asset.browser_download_url -OutFile $installer -UseBasicParsing
+        } else {
+          Write-Host "Using cached $installer"
+        }
+        hdiutil attach $installer
         cp -R "/Volumes/ConformU-Installer/ConformU.app" /Applications/
         hdiutil detach "/Volumes/ConformU-Installer"
         echo "/Applications/ConformU.app/Contents/Resources" >> $env:GITHUB_PATH
