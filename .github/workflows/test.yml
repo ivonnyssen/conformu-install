@@ -13,15 +13,18 @@ jobs:
 
       - name: Install ConformU
         uses: ./
+        id: conformu
 
       - name: Test ConformU (Linux)
         if: runner.os == 'Linux'
         run: |
-          conformu --help
-          if [ $? -eq 0 ]; then
-            echo "ConformU test successful"
+          conformu --version
+          INSTALLED_VERSION=$(conformu --version | grep -oP 'ConformU \K[0-9]+\.[0-9]+\.[0-9]+')
+          EXPECTED_VERSION="${{ steps.conformu.outputs.version }}"
+          if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
+            echo "✓ ConformU version test successful: $INSTALLED_VERSION"
           else
-            echo "ConformU test failed"
+            echo "✗ Version mismatch: expected $EXPECTED_VERSION, got $INSTALLED_VERSION"
             exit 1
           fi
         shell: bash
@@ -29,11 +32,14 @@ jobs:
       - name: Test ConformU (Windows)
         if: runner.os == 'Windows'
         run: |
-          conformu --help
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "ConformU test successful"
+          conformu --version
+          $output = conformu --version
+          $installedVersion = ($output | Select-String 'ConformU (\d+\.\d+\.\d+)').Matches[0].Groups[1].Value
+          $expectedVersion = "${{ steps.conformu.outputs.version }}"
+          if ($installedVersion -eq $expectedVersion) {
+            Write-Host "✓ ConformU version test successful: $installedVersion"
           } else {
-            Write-Host "ConformU test failed"
+            Write-Host "✗ Version mismatch: expected $expectedVersion, got $installedVersion"
             exit 1
           }
         shell: powershell
@@ -41,11 +47,14 @@ jobs:
       - name: Test ConformU (macOS)
         if: runner.os == 'macOS'
         run: |
-          conformu --help
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "ConformU test successful"
+          conformu --version
+          $output = conformu --version
+          $installedVersion = ($output | Select-String 'ConformU (\d+\.\d+\.\d+)').Matches[0].Groups[1].Value
+          $expectedVersion = "${{ steps.conformu.outputs.version }}"
+          if ($installedVersion -eq $expectedVersion) {
+            Write-Host "✓ ConformU version test successful: $installedVersion"
           } else {
-            Write-Host "ConformU test failed"
+            Write-Host "✗ Version mismatch: expected $expectedVersion, got $installedVersion"
             exit 1
           }
         shell: pwsh
