@@ -10,14 +10,15 @@ inputs:
     description: "ConformU version to install (default: latest)"
     required: false
     default: latest
+  cache:
+    description: "Enable caching of downloaded files"
+    required: false
+    default: 'true'
 
 outputs:
   version:
     description: Installed ConformU version
     value: ${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}
-  cache-key:
-    description: Cache key for actions/cache
-    value: conformu-${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}-${{ runner.os }}
 
 runs:
   using: composite
@@ -28,6 +29,19 @@ runs:
       with:
         repository: ASCOMInitiative/ConformU
         token: ${{ github.token }}
+
+    - id: cache-restore
+      if: inputs.cache == 'true'
+      uses: actions/cache/restore@v5
+      with:
+        key: conformu-${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}-${{ runner.os }}
+        restore-keys: |
+          conformu-${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}-
+          conformu-
+        path: |
+          conformu.linux-x64.tar.xz
+          ConformU.*.Setup.exe
+          ConformU-Installer.dmg
 
     - id: install-linux
       if: runner.os == 'Linux'
@@ -78,3 +92,13 @@ runs:
         hdiutil detach "/Volumes/ConformU-Installer"
         echo "/Applications/ConformU.app/Contents/Resources" >> $env:GITHUB_PATH
       shell: pwsh
+
+    - id: cache-save
+      if: inputs.cache == 'true' && steps.cache-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v5
+      with:
+        key: conformu-${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}-${{ runner.os }}
+        path: |
+          conformu.linux-x64.tar.xz
+          ConformU.*.Setup.exe
+          ConformU-Installer.dmg
