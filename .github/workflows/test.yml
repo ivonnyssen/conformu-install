@@ -1,6 +1,14 @@
 name: Test ConformU Install
 
-on: [push, pull_request]
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "7 7 * * *"
 
 jobs:
   test:
