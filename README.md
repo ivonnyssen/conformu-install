@@ -18,20 +18,12 @@ on Linux, Windows, and macOS.
     version: v1.2.3
 ```
 
-### With caching
+### With caching disabled
 
 ```yaml
-- name: Install ConformU
-  id: conformu
-  uses: ivonnyssen/conformu-install@v1
-
-- uses: actions/cache@v5
+- uses: ivonnyssen/conformu-install@v1
   with:
-    key: ${{ steps.conformu.outputs.cache-key }}
-    path: |
-      conformu.linux-x64.tar.xz
-      ConformU.*.Setup.exe
-      ConformU-Installer.dmg
+    cache: false
 ```
 
 ## Inputs
@@ -39,13 +31,13 @@ on Linux, Windows, and macOS.
 | Name | Description | Default |
 | ------- | -------- | ------- |
 | `version` | ConformU version to install | `latest` |
+| `cache` | Enable caching of downloaded files | `true` |
 
 ## Outputs
 
 | Name | Description |
 | ---- | ----------- |
 | `version` | Installed ConformU version |
-| `cache-key` | Cache key for actions/cache |
 
 ## Supported Platforms
 

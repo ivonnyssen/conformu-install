@@ -10,14 +10,15 @@ inputs:
     description: "ConformU version to install (default: latest)"
     required: false
     default: latest
+  cache:
+    description: "Enable caching of downloaded files"
+    required: false
+    default: 'true'
 
 outputs:
   version:
     description: Installed ConformU version
     value: ${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}
-  cache-key:
-    description: Cache key for actions/cache
-    value: conformu-${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}-${{ runner.os }}
 
 runs:
   using: composite
@@ -29,16 +30,58 @@ runs:
         repository: ASCOMInitiative/ConformU
         token: ${{ github.token }}
 
+    - id: cache-key
+      run: echo "key=conformu-${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}-${{ runner.os }}" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - id: get-assets-linux
+      if: runner.os == 'Linux'
+      run: |
+        RELEASE="${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}"
+        echo "name=conformu.linux-x64.tar.xz" >> $GITHUB_OUTPUT
+        echo "url=https://github.com/ASCOMInitiative/ConformU/releases/download/$RELEASE/conformu.linux-x64.tar.xz" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - id: get-assets-other
+      if: runner.os != 'Linux'
+      run: |
+        $release = "${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}"
+        $headers = @{ Authorization = "Bearer ${{ github.token }}" }
+        $releaseInfo = Invoke-RestMethod "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/tags/$release" -Headers $headers
+        
+        if ("${{ runner.os }}" -eq "Windows") {
+          $asset = $releaseInfo.assets | Where-Object { $_.name -like "ConformU.*.Setup.exe" }
+        } else {
+          $asset = $releaseInfo.assets | Where-Object { $_.name -eq "ConformU-Installer.dmg" }
+        }
+        
+        echo "name=$($asset.name)" >> $env:GITHUB_OUTPUT
+        echo "url=$($asset.browser_download_url)" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+
+    - id: cache-restore
+      if: inputs.cache == 'true'
+      uses: actions/cache/restore@v5
+      with:
+        key: ${{ steps.cache-key.outputs.key }}
+        restore-keys: |
+          conformu-${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}-
+          conformu-
+        path: |
+          conformu.linux-x64.tar.xz
+          ConformU.*.Setup.exe
+          ConformU-Installer.dmg
+
     - id: install-linux
       if: runner.os == 'Linux'
       run: |
-        VERSION="${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}"
-        if [ ! -f "conformu.linux-x64.tar.xz" ]; then
-          wget -q --header="Authorization: Bearer ${{ github.token }}" "https://github.com/ASCOMInitiative/ConformU/releases/download/$VERSION/conformu.linux-x64.tar.xz"
+        FILE="${{ steps.get-assets-linux.outputs.name }}"
+        if [ ! -f "$FILE" ]; then
+          wget -q --header="Authorization: Bearer ${{ github.token }}" "${{ steps.get-assets-linux.outputs.url }}"
         else
-          echo "Using cached conformu.linux-x64.tar.xz"
+          echo "Using cached $FILE"
         fi
-        tar -xf conformu.linux-x64.tar.xz
+        tar -xf "$FILE"
         chmod +x conformu
         echo "$PWD" >> $GITHUB_PATH
       shell: bash
@@ -46,13 +89,9 @@ runs:
     - id: install-windows
       if: runner.os == 'Windows'
       run: |
-        $release = "${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}"
-        $headers = @{ Authorization = "Bearer ${{ github.token }}" }
-        $releaseInfo = Invoke-RestMethod "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/tags/$release" -Headers $headers
-        $asset = $releaseInfo.assets | Where-Object { $_.name -like "ConformU.*.Setup.exe" }
-        $installer = $asset.name
+        $installer = "${{ steps.get-assets-other.outputs.name }}"
         if (-not (Test-Path $installer)) {
-          Invoke-WebRequest $asset.browser_download_url -OutFile $installer -UseBasicParsing
+          Invoke-WebRequest "${{ steps.get-assets-other.outputs.url }}" -OutFile $installer -UseBasicParsing
         } else {
           Write-Host "Using cached $installer"
         }
@@ -63,13 +102,9 @@ runs:
     - id: install-macos
       if: runner.os == 'macOS'
       run: |
-        $release = "${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}"
-        $headers = @{ Authorization = "Bearer ${{ github.token }}" }
-        $releaseInfo = Invoke-RestMethod "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/tags/$release" -Headers $headers
-        $asset = $releaseInfo.assets | Where-Object { $_.name -eq "ConformU-Installer.dmg" }
-        $installer = $asset.name
+        $installer = "${{ steps.get-assets-other.outputs.name }}"
         if (-not (Test-Path $installer)) {
-          Invoke-WebRequest $asset.browser_download_url -OutFile $installer -UseBasicParsing
+          Invoke-WebRequest "${{ steps.get-assets-other.outputs.url }}" -OutFile $installer -UseBasicParsing
         } else {
           Write-Host "Using cached $installer"
         }
@@ -78,3 +113,13 @@ runs:
         hdiutil detach "/Volumes/ConformU-Installer"
         echo "/Applications/ConformU.app/Contents/Resources" >> $env:GITHUB_PATH
       shell: pwsh
+
+    - id: cache-save
+      if: inputs.cache == 'true' && steps.cache-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v5
+      with:
+        key: ${{ steps.cache-key.outputs.key }}
+        path: |
+          conformu.linux-x64.tar.xz
+          ConformU.*.Setup.exe
+          ConformU-Installer.dmg
