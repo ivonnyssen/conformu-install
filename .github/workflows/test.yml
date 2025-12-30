@@ -37,12 +37,14 @@ jobs:
         run: |
           conformu --version
           $output = conformu --version
-          $installedVersion = ($output | Select-String 'ConformU (\d+\.\d+\.\d+)').Matches[0].Groups[1].Value
+          $installedVersion = ($output | Select-String 'Conform Universal (\d+\.\d+\.\d+)').Matches[0].Groups[1].Value
           $expectedVersion = "${{ steps.conformu.outputs.version }}"
+          # Remove 'v' prefix if present
+          $expectedVersion = $expectedVersion -replace '^v', ''
           if ($installedVersion -eq $expectedVersion) {
-            Write-Host "✓ ConformU version test successful: $installedVersion"
+            Write-Host "ConformU version test successful: $installedVersion"
           } else {
-            Write-Host "✗ Version mismatch: expected $expectedVersion, got $installedVersion"
+            Write-Host "Version mismatch: expected $expectedVersion, got $installedVersion"
             exit 1
           }
         shell: powershell
@@ -52,12 +54,14 @@ jobs:
         run: |
           conformu --version
           $output = conformu --version
-          $installedVersion = ($output | Select-String 'ConformU (\d+\.\d+\.\d+)').Matches[0].Groups[1].Value
+          $installedVersion = ($output | Select-String 'Conform Universal (\d+\.\d+\.\d+)').Matches[0].Groups[1].Value
           $expectedVersion = "${{ steps.conformu.outputs.version }}"
+          # Remove 'v' prefix if present
+          $expectedVersion = $expectedVersion -replace '^v', ''
           if ($installedVersion -eq $expectedVersion) {
-            Write-Host "✓ ConformU version test successful: $installedVersion"
+            Write-Host "ConformU version test successful: $installedVersion"
           } else {
-            Write-Host "✗ Version mismatch: expected $expectedVersion, got $installedVersion"
+            Write-Host "Version mismatch: expected $expectedVersion, got $installedVersion"
             exit 1
           }
         shell: pwsh
