@@ -64,9 +64,6 @@ runs:
       uses: actions/cache/restore@v5
       with:
         key: ${{ steps.cache-key.outputs.key }}
-        restore-keys: |
-          conformu-${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}-
-          conformu-
         path: |
           conformu.linux-x64.tar.xz
           ConformU.*.Setup.exe

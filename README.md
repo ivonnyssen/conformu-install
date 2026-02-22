@@ -7,13 +7,13 @@ on Linux, Windows, and macOS.
 ## Usage
 
 ```yaml
-- uses: ivonnyssen/conformu-install@v1
+- uses: ivonnyssen/conformu-install@v2
 ```
 
 ### With specific version
 
 ```yaml
-- uses: ivonnyssen/conformu-install@v1
+- uses: ivonnyssen/conformu-install@v2
   with:
     version: v1.2.3
 ```
@@ -21,7 +21,7 @@ on Linux, Windows, and macOS.
 ### With caching disabled
 
 ```yaml
-- uses: ivonnyssen/conformu-install@v1
+- uses: ivonnyssen/conformu-install@v2
   with:
     cache: false
 ```
