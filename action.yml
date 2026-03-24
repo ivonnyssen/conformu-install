@@ -25,10 +25,12 @@ runs:
   steps:
     - id: get-version
       if: inputs.version == 'latest'
-      uses: pozetroninc/github-action-get-latest-release@master
-      with:
-        repository: ASCOMInitiative/ConformU
-        token: ${{ github.token }}
+      run: |
+        RELEASE=$(curl -sL -H "Authorization: Bearer ${{ github.token }}" \
+          "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/latest" \
+          | jq -r '.tag_name')
+        echo "release=$RELEASE" >> $GITHUB_OUTPUT
+      shell: bash
 
     - id: cache-key
       run: echo "key=conformu-${{ inputs.version == 'latest' && steps.get-version.outputs.release || inputs.version }}-${{ runner.os }}" >> $GITHUB_OUTPUT
